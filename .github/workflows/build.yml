@@ -11,21 +11,38 @@ jobs:
         include:
           - os: macos-latest
             output_name: clean_csv_mac
+            artifact_name: bin-mac
           - os: windows-latest
             output_name: clean_csv_win.exe
+            artifact_name: bin-win
 
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v4
 
       - name: Compilation
-        # Cette commande fonctionne sur les deux OS car g++ est standard
         run: g++ -O3 main.cpp -o ${{ matrix.output_name }}
 
-      - name: Téléverser l'exécutable
+      - name: Téléverser l'exécutable temporaire
         uses: actions/upload-artifact@v4
         with:
-          name: Mes-Executables-Multiplateforme
+          name: ${{ matrix.artifact_name }}
           path: ${{ matrix.output_name }}
-          # 'if-no-files-found' évite que l'action échoue si un fichier manque
-          if-no-files-found: error
+
+  merge:
+    name: Fusionner les exécutables
+    runs-on: ubuntu-latest
+    needs: build  # Attend que les deux compilations soient finies
+    steps:
+      - name: Télécharger tous les artefacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-bins
+          pattern: bin-*
+          merge-multiple: true
+
+      - name: Créer l'archive finale
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pack-Complet-Multiplateforme
+          path: ./all-bins
