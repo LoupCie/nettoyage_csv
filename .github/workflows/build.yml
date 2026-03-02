@@ -12,33 +12,34 @@ jobs:
           - os: macos-latest
             output_name: clean_csv_mac
             artifact_name: bin-mac
-            # Sur Mac, on lie les frameworks Cocoa/AppKit pour la fenêtre native
             libs: "-framework AppKit -framework UniformTypeIdentifiers"
           - os: windows-latest
             output_name: clean_csv_win.exe
             artifact_name: bin-win
-            # Sur Windows, on lie les bibliothèques système pour les fenêtres (ole32, uuid)
             libs: "-lole32 -luuid -lcomctl32 -static -static-libgcc -static-libstdc++"
 
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v4
 
-      - name: Installer Native File Dialog (NFD)
+      - name: Installer et Compiler NFD
         run: |
           git clone https://github.com/btzy/nativefiledialog-extended.git nfd_src
-          cd nfd_src && mkdir build && cd build
+          cd nfd_src
+          mkdir build
+          cd build
           cmake -DNFD_BUILD_TESTS=OFF ..
           cmake --build . --config Release
 
-      - name: Compilation du programme
+      - name: Compilation du programme (macOS)
+        if: matrix.os == 'macos-latest'
         run: |
-          g++ -O3 main.cpp \
-          -I nfd_src/src/include \
-          -L nfd_src/build/src \
-          -lnfd \
-          ${{ matrix.libs }} \
-          -o ${{ matrix.output_name }}
+          g++ -O3 main.cpp -I nfd_src/src/include -L nfd_src/build/src -lnfd ${{ matrix.libs }} -o ${{ matrix.output_name }}
+
+      - name: Compilation du programme (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          g++ -O3 main.cpp -I nfd_src/src/include -L nfd_src/build/src/Release -lnfd ${{ matrix.libs }} -o ${{ matrix.output_name }}
 
       - name: Téléverser l'exécutable
         uses: actions/upload-artifact@v4
@@ -61,5 +62,5 @@ jobs:
       - name: Créer le Pack Final
         uses: actions/upload-artifact@v4
         with:
-          name: Pack-CSV-Selecteur-Natif
+          name: Pack-CSV-Final
           path: ./release
