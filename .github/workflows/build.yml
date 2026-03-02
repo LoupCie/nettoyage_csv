@@ -1,0 +1,31 @@
+name: Compilation Multi-Plateforme
+
+on: [push]
+
+jobs:
+  build:
+    name: Build sur ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            output_name: clean_csv_mac
+          - os: windows-latest
+            output_name: clean_csv_win.exe
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Compilation
+        # Cette commande fonctionne sur les deux OS car g++ est standard
+        run: g++ -O3 main.cpp -o ${{ matrix.output_name }}
+
+      - name: Téléverser l'exécutable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mes-Executables-Multiplateforme
+          path: ${{ matrix.output_name }}
+          # 'if-no-files-found' évite que l'action échoue si un fichier manque
+          if-no-files-found: error
