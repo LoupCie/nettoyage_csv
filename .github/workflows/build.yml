@@ -1,4 +1,4 @@
-name: Compilation Multi-Plateforme
+name: Compilation Multi-Plateforme Native
 
 on: [push]
 
@@ -12,32 +12,46 @@ jobs:
           - os: macos-latest
             output_name: clean_csv_mac
             artifact_name: bin-mac
-            flags: "" 
+            # Sur Mac, on lie les frameworks Cocoa/AppKit pour la fenêtre native
+            libs: "-framework AppKit -framework UniformTypeIdentifiers"
           - os: windows-latest
             output_name: clean_csv_win.exe
             artifact_name: bin-win
-            # Options critiques pour inclure les DLL dans l'EXE
-            flags: "-static -static-libgcc -static-libstdc++" 
+            # Sur Windows, on lie les bibliothèques système pour les fenêtres (ole32, uuid)
+            libs: "-lole32 -luuid -lcomctl32 -static -static-libgcc -static-libstdc++"
 
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v4
 
-      - name: Compilation avec G++
-        run: g++ -O3 main.cpp -o ${{ matrix.output_name }} ${{ matrix.flags }}
+      - name: Installer Native File Dialog (NFD)
+        run: |
+          git clone https://github.com/btzy/nativefiledialog-extended.git nfd_src
+          cd nfd_src && mkdir build && cd build
+          cmake -DNFD_BUILD_TESTS=OFF ..
+          cmake --build . --config Release
 
-      - name: Téléverser l'exécutable temporaire
+      - name: Compilation du programme
+        run: |
+          g++ -O3 main.cpp \
+          -I nfd_src/src/include \
+          -L nfd_src/build/src \
+          -lnfd \
+          ${{ matrix.libs }} \
+          -o ${{ matrix.output_name }}
+
+      - name: Téléverser l'exécutable
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.output_name }}
 
   merge:
-    name: Regroupement des fichiers
+    name: Regroupement final
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Télécharger tous les artefacts
+      - name: Télécharger artefacts
         uses: actions/download-artifact@v4
         with:
           path: ./release
@@ -47,5 +61,5 @@ jobs:
       - name: Créer le Pack Final
         uses: actions/upload-artifact@v4
         with:
-          name: Pack-Nettoyeur-CSV
+          name: Pack-CSV-Selecteur-Natif
           path: ./release

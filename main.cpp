@@ -1,51 +1,40 @@
 #include <iostream>
 #include <fstream>
-#include <string>
 #include <vector>
+#include <nfd.hpp>
 
-void normalizeCsvLineEndings(const std::string& filePath) {
-    // 1. Lecture du fichier original en mode binaire
+void processCsv(const std::string& filePath) {
     std::ifstream inFile(filePath, std::ios::binary);
-    if (!inFile) {
-        std::cerr << "Erreur : Impossible d'ouvrir le fichier." << std::endl;
-        return;
-    }
+    if (!inFile) return;
 
     std::vector<char> buffer;
     char ch;
     while (inFile.get(ch)) {
-        // On ignore le retour chariot (\r), on ne garde que le saut de ligne (\n)
-        if (ch != '\r') {
-            buffer.push_back(ch);
-        }
+        if (ch != '\r') buffer.push_back(ch);
     }
     inFile.close();
 
-    // 2. Réécriture du fichier sous le même nom
     std::ofstream outFile(filePath, std::ios::binary | std::ios::trunc);
-    if (!outFile) {
-        std::cerr << "Erreur : Impossible de sauvegarder le fichier." << std::endl;
-        return;
-    }
-
     outFile.write(buffer.data(), buffer.size());
     outFile.close();
-
-    std::cout << "Succes : Le fichier a ete normalise (LF uniquement)." << std::endl;
 }
 
 int main() {
-    std::string path;
-    std::cout << "--- Nettoyeur de CSV (Suppression des \\r) ---" << std::endl;
-    std::cout << "Entrez le chemin complet du fichier .csv : ";
-    std::getline(std::cin, path);
+    NFD_Init();
+    nfdu8char_t *outPath;
+    nfdu8filteritem_t filters[1] = { { "Fichiers CSV", "csv" } };
 
-    // Nettoyage rapide des guillemets si l'utilisateur a fait un glisser-déposer
-    if (!path.empty() && (path.front() == '"' || path.front() == '\'')) {
-        path = path.substr(1, path.length() - 2);
+    // Ouvre la fenêtre native
+    nfdresult_t result = NFD_OpenDialog(&outPath, filters, 1, NULL);
+
+    if (result == NFD_OKAY) {
+        processCsv(outPath);
+        std::cout << "Fichier traite avec succes !" << std::endl;
+        NFD_FreePath(outPath);
+    } else {
+        std::cout << "Selection annulee." << std::endl;
     }
 
-    normalizeCsvLineEndings(path);
-
+    NFD_Quit();
     return 0;
 }
